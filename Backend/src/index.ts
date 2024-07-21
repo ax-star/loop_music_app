@@ -1,5 +1,5 @@
 import app from './app';
-import { AppDataSource } from './db';
+import { AppDataSource } from './configs/db.config';
 
 const port = 3000;
 
