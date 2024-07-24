@@ -1,0 +1,9 @@
+<div class="container mx-auto px-8 pt-8">
+    <div class="divider"></div>
+    <div class="grid grid-cols-3 gap-3">
+        <button class="btn btn-lg btn-circle btn-primary" type="button" (click)="switchAudioControl()">
+            <fa-icon [icon]="mainControlIcon" size="2x"></fa-icon>
+        </button>
+        <input type="range" min="0" max="100" [(ngModel)]="volumeAudio" class="range range-secondary self-center" (input)="changeVolumeAudio()"/>
+    </div>
+</div>
