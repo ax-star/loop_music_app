@@ -1,13 +1,12 @@
 import { Component, HostListener } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AudioService } from './core/services/audio.service';
-import { SongPlayerModule } from './modules/song-player/song-player.module';
-import { PlayerComponent } from "./modules/song-player/components/player/player.component";
+import { PlaybackControllerComponent } from './modules/consumers/components/playback-controller/playback-controller.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, SongPlayerModule, PlayerComponent],
+  imports: [RouterOutlet, PlaybackControllerComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
