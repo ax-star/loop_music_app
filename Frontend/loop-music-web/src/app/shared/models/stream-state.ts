@@ -13,4 +13,6 @@ export interface StreamState {
     canplay: boolean; // indicates if can be played the selected audio or not
 
     error: boolean; // indicates if an error occurred while playing audio or not
+
+    ended: boolean; // indicates if the end of the media was reached  
 }

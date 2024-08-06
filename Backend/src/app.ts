@@ -6,7 +6,7 @@ import SongRoutes from './routes/SongRoutes';
 
 const app = express();
 
-app.use(morgan('dev'));
+app.use(morgan(':date[web] -> :method :url :status :response-time ms - :res[content-length]'));
 app.use(cors());
 
 app.use('/api', SongRoutes)

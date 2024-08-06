@@ -1,9 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FaIconLibrary, FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { AudioService } from '../../../../core/services/audio.service';
 import { faCoffee, faPause, faPlay, faStop } from '@fortawesome/free-solid-svg-icons';
 import { StreamState } from '../../../../shared/models/stream-state';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-playback-controller',
@@ -12,8 +13,9 @@ import { StreamState } from '../../../../shared/models/stream-state';
   templateUrl: './playback-controller.component.html',
   styleUrl: './playback-controller.component.css'
 })
-export class PlaybackControllerComponent {
+export class PlaybackControllerComponent implements OnDestroy {
 
+  private stateStream!: Subscription;
   state!: StreamState;
 
   // (Legacy)
@@ -23,9 +25,13 @@ export class PlaybackControllerComponent {
     public audioService: AudioService,
     public library: FaIconLibrary
   ) {
-    audioService.getStreamState().subscribe(state => {
-      this.state = state;
-      console.log(JSON.stringify(state));
+    this.stateStream = audioService.getStreamState().subscribe({
+      next: (data) => {
+        this.state = data;
+        console.log(this.state);
+      },
+      error: (error) => console.error(error),
+      complete: () => console.log('AudioService has finished playing audio.')
     });
 
     library.addIcons(faCoffee, faPause, faPlay, faStop);
@@ -57,6 +63,11 @@ export class PlaybackControllerComponent {
 
   changeVolumeAudio() {
     this.audioService.setVolume(this.volumeAudio / 100);
+  }
+
+
+  ngOnDestroy(): void {
+    this.stateStream.unsubscribe();
   }
 
 }

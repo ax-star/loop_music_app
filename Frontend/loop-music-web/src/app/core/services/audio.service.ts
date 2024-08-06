@@ -1,50 +1,71 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Observable, Subject, takeUntil } from 'rxjs';
 import { StreamState } from '../../shared/models/stream-state';
 
 @Injectable({
   providedIn: 'root'
 })
-export class AudioService {
+export class AudioService implements OnDestroy {
 
   private audio = new Audio(); // The audio object that will reproduce the sound.
   private lastVolume!: number; // The previous value of audio.volume after any change.
 
   private audioEvents: Array<string> = [
-    "ended",
-    "error",
-    "play",
-    "playing",
-    "pause",
-    "timeupdate",
-    "canplay",
-    "loadedmetadata",
-    "loadstart"
+    'ended',
+    'error',
+    'play',
+    'playing',
+    'pause',
+    'timeupdate',
+    'canplay',
+    'loadedmetadata',
+    'loadstart',
+    'progress'
   ]; // List of some events emitted by the audio property.
   private stop$ = new Subject<boolean>(); // Subtype of Observable used to notify when the audio stream must stop.
   private streamState!: StreamState; // Data managed to control and monitor the audio streaming.
   private streamChange!: BehaviorSubject<StreamState>; // Subtype of Observable used to get the data of the streamState property.
 
+  private audioCtx!: AudioContext;
+  private audioAnalyzer!: AnalyserNode;
+  private source!: MediaElementAudioSourceNode;
+  
   constructor() {
     this.resetStreamState(); // Initialize streamState
     this.streamChange = new BehaviorSubject(
       this.streamState
     );
+
+    // Experimental
+    this.audio.crossOrigin = 'anonymous';
+
+    // ↓ Initialize the audioAnalyzer and other properties needed ↓
+    this.audioCtx = new AudioContext();
+    this.audioAnalyzer = this.audioCtx.createAnalyser();
+    this.audioAnalyzer.fftSize = 512;
+    this.source = this.audioCtx.createMediaElementSource(this.audio);
+    this.source.connect(this.audioAnalyzer);
+    this.audioAnalyzer.connect(this.audioCtx.destination);
   }
 
   // Starts streaming the audio from the url.
   private startStream(url: string): Observable<any> {
     return new Observable(observer => {
-      this.audio.volume = this.lastVolume;
-      this.audio.src = url;
-      this.audio.load();
+      let handler: EventListener;
+      try {
+        this.audio.volume = this.lastVolume;
+        this.audio.src = url;
+        this.audio.load();
 
-      const handler: EventListener = (event: Event) => {
-        this.updateStreamState(event);
-        observer.next(event);
+        handler = (event: Event) => {
+          this.updateStreamState(event);
+          observer.next(event);
+        }
+
+        this.addListeners(this.audio, this.audioEvents, handler);
+      } catch (error) {
+        observer.error(error);
       }
-
-      this.addListeners(this.audio, this.audioEvents, handler);
 
       // On unsubscribing do...
       return () => {
@@ -92,6 +113,9 @@ export class AudioService {
         this.resetStreamState();
         this.streamState.error = true;
         break;
+      case 'ended':
+        this.streamState.ended = true;
+        this.stop$.next(true);
     }
     this.streamChange.next(this.streamState);
   }
@@ -105,7 +129,8 @@ export class AudioService {
       duration: undefined,
       currentTime: undefined,
       canplay: false,
-      error: false
+      error: false,
+      ended: false,
     };
   }
 
@@ -117,7 +142,7 @@ export class AudioService {
     return this.startStream(url).pipe(takeUntil(this.stop$));
   }
 
-  // Returns an Observable of StreamState.
+  // Returns an Observable that delivers the latest streamState.
   getStreamState(): Observable<StreamState> {
     return this.streamChange.asObservable();
   }
@@ -162,6 +187,24 @@ export class AudioService {
     // return date.toISOString().substring(11, 19); // HH:mm:ss
     return date.toISOString().substring(14, 19); // mm:ss
   }
+  
+  // Returns an Observable that delivers the latest frequency data from the audioAnalyzer.
+  getFrequencyData(): Observable<Uint8Array> {
+    return new Observable((observer) => {
+      const frequencyData = new Uint8Array(this.audioAnalyzer.frequencyBinCount);
+
+      const frameCallback = () => {
+        this.audioAnalyzer.getByteFrequencyData(frequencyData);
+        observer.next(frequencyData);
+        requestAnimationFrame(frameCallback);
+      };
+      frameCallback();
+
+      return () => {
+        // Not needed
+      };
+    })
+  }
 
   // Plays the audio, then progressively increases the volume up to lastVolume.
   private fadeIn() {
@@ -192,4 +235,8 @@ export class AudioService {
     this.audio.volume = this.lastVolume;
   }
 
+  
+  ngOnDestroy(): void {
+    this.stop();
+  }
 }
